@@ -12,6 +12,7 @@ namespace ospray {
 
       void buildUI(void *ImGuiCtx) override;
 
+      std::string message;
     private:
       std::string panelName;
     };

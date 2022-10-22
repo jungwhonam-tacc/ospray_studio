@@ -12,6 +12,16 @@ namespace ospray {
       , panelName(_panelName)
   {}
 
+  static void showCountingResults(int max, PanelStreamer *streamer) {
+    int cnt = 0;
+    while(cnt < max) {
+      streamer->message = "(" + std::to_string(cnt) + "/" + std::to_string(max-1) + ")";
+      std::cout << streamer->message << std::endl;
+      cnt++;
+      usleep(1 * 1000000); // Sleeps for 1 second
+    }
+  }
+
   void PanelStreamer::buildUI(void *ImGuiCtx)
   {
     // Need to set ImGuiContext in *this* address space
@@ -35,9 +45,16 @@ namespace ospray {
         ImGui::CloseCurrentPopup();
       }
 
+      ImGui::Separator();
+      if (ImGui::Button("Start")) {
+        std::thread t(showCountingResults, 5, this);
+        t.detach();
+      }
+      ImGui::Text("Result(s): %s", message.c_str());
+
       ImGui::EndPopup();
     }
-    }
-
+  }
+  
   }  // namespace streamer_plugin
 }  // namespace ospray
