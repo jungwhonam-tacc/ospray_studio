@@ -12,16 +12,6 @@ namespace ospray {
       , panelName(_panelName)
   {}
 
-  static void showCountingResults(int max, PanelStreamer *streamer) {
-    int cnt = 0;
-    while(cnt < max) {
-      streamer->message = "(" + std::to_string(cnt) + "/" + std::to_string(max-1) + ")";
-      std::cout << streamer->message << std::endl;
-      cnt++;
-      usleep(1 * 1000000); // Sleeps for 1 second
-    }
-  }
-
   void PanelStreamer::buildUI(void *ImGuiCtx)
   {
     // Need to set ImGuiContext in *this* address space
@@ -30,31 +20,51 @@ namespace ospray {
 
     if (ImGui::BeginPopupModal(
             panelName.c_str(), nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
-      ImGui::Text("%s", "Hello from the streamer plugin!");
+      ImGui::Text("%s", "The Streamer Plugin receives data from Gesture Tracking Server.");
       ImGui::Separator();
 
-      ImGui::Text("%s", "Current application state");
-      ImGui::Text("Frame: %p", (void *) context->frame.get());
-      ImGui::Text("Arcball Camera: %p", (void *) context->arcballCamera.get());
-      ImGui::Text("Current scenegraph:");
-      context->frame->traverse<sg::GenerateImGuiWidgets>(
-          sg::TreeState::ROOTOPEN);
+      ImGui::Text("Status: \n%s", status.c_str());
+      ImGui::Separator();
 
+      if (ImGui::Button("Connect")) {
+        // Initialize socket.
+        tcpSocket = new TCPSocket([](int errorCode, std::string errorMessage){
+            std::cout << "Socket creation error:" << errorCode << " : " << errorMessage << std::endl;
+        });
+
+        // Start receiving from the host.
+        tcpSocket->onMessageReceived = [&](std::string message) {
+            std::cout << "Message from the Server: " << message << std::endl;
+            status = message;
+        };
+        
+        // On socket closed:
+        tcpSocket->onSocketClosed = [](int errorCode){
+            std::cout << "Connection closed: " << errorCode << std::endl;
+        };
+
+        // Connect to the host.
+        tcpSocket->Connect("localhost", 8888, [&] {
+            std::cout << "Connected to the server successfully." << std::endl;
+        },
+        [](int errorCode, std::string errorMessage){
+            // CONNECTION FAILED
+            std::cout << errorCode << " : " << errorMessage << std::endl;
+        });
+      }
+      if (ImGui::Button("Disconnect")) {
+        tcpSocket->Close();
+      }
+
+      ImGui::Separator();
       if (ImGui::Button("Close")) {
         setShown(false);
         ImGui::CloseCurrentPopup();
       }
 
-      ImGui::Separator();
-      if (ImGui::Button("Start")) {
-        std::thread t(showCountingResults, 5, this);
-        t.detach();
-      }
-      ImGui::Text("Result(s): %s", message.c_str());
-
       ImGui::EndPopup();
     }
   }
-  
+
   }  // namespace streamer_plugin
 }  // namespace ospray

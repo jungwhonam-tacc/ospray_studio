@@ -2,6 +2,7 @@
 
 #include "app/widgets/Panel.h"
 #include "app/ospStudio.h"
+#include "async-sockets/tcpsocket.hpp"
 
 namespace ospray {
   namespace streamer_plugin {
@@ -12,9 +13,11 @@ namespace ospray {
 
       void buildUI(void *ImGuiCtx) override;
 
-      std::string message;
     private:
       std::string panelName;
+
+      TCPSocket* tcpSocket;
+      std::string status;
     };
 
   }  // namespace streamer_plugin
