@@ -26,35 +26,45 @@ namespace ospray {
       ImGui::Text("Status: \n%s", status.c_str());
       ImGui::Separator();
 
-      if (ImGui::Button("Connect")) {
-        // Initialize socket.
-        tcpSocket = new TCPSocket([](int errorCode, std::string errorMessage){
-            std::cout << "Socket creation error:" << errorCode << " : " << errorMessage << std::endl;
-        });
-
-        // Start receiving from the host.
-        tcpSocket->onMessageReceived = [&](std::string message) {
-            std::cout << "Message from the Server: " << message << std::endl;
-            status = message;
-        };
+      if (tcpSocket) { // tcpSocket is not NULL.
+        ImGui::Text("%s", "Currently connected to the server...");
         
-        // On socket closed:
-        tcpSocket->onSocketClosed = [](int errorCode){
-            std::cout << "Connection closed: " << errorCode << std::endl;
-        };
+        if (ImGui::Button("Disconnect")) {
+          tcpSocket->Close();
+        }
+      }
+      else {
+        ImGui::Text("%s", "Currently NOT connected to the server...");
 
-        // Connect to the host.
-        tcpSocket->Connect("localhost", 8888, [&] {
-            std::cout << "Connected to the server successfully." << std::endl;
-        },
-        [](int errorCode, std::string errorMessage){
-            // CONNECTION FAILED
-            std::cout << errorCode << " : " << errorMessage << std::endl;
-        });
-      }
-      if (ImGui::Button("Disconnect")) {
-        tcpSocket->Close();
-      }
+        if (ImGui::Button("Connect")) {
+          // Initialize socket.
+          tcpSocket = new TCPSocket([](int errorCode, std::string errorMessage){
+              std::cout << "Socket creation error:" << errorCode << " : " << errorMessage << std::endl;
+          });
+
+          // Start receiving from the host.
+          tcpSocket->onMessageReceived = [&](std::string message) {
+              std::cout << "Message from the Server: " << message << std::endl;
+              status = message;
+          };
+          
+          // On socket closed:
+          tcpSocket->onSocketClosed = [&](int errorCode){
+              std::cout << "Connection closed: " << errorCode << std::endl;
+              delete tcpSocket;
+              tcpSocket = NULL;
+          };
+
+          // Connect to the host.
+          tcpSocket->Connect("localhost", 8888, [&] {
+              std::cout << "Connected to the server successfully." << std::endl;
+          },
+          [](int errorCode, std::string errorMessage){
+              // CONNECTION FAILED
+              std::cout << errorCode << " : " << errorMessage << std::endl;
+          });
+        }
+      } 
 
       ImGui::Separator();
       if (ImGui::Button("Close")) {
