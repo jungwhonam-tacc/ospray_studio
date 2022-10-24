@@ -2,6 +2,8 @@
 
 #include "app/widgets/GenerateImGuiWidgets.h"
 
+#include "sg/JSONDefs.h"
+
 #include "imgui.h"
 
 namespace ospray {
@@ -10,7 +12,29 @@ namespace ospray {
   PanelStreamer::PanelStreamer(std::shared_ptr<StudioContext> _context, std::string _panelName)
       : Panel(_panelName.c_str(), _context)
       , panelName(_panelName)
-  { tcpSocket = 0; status = "Hello~"; speedMultiplier = 0.05f; }
+  { ipAddress = "localhost"; portNumber = 8888; tcpSocket = 0; status = "Hello~"; speedMultiplier = 0.025f; loadServerInfo(); }
+
+  void PanelStreamer::loadServerInfo() {
+    // read from cams.json
+    std::ifstream info("streamer.json");
+    if (info) {
+      JSON j;
+      info >> j;
+      for (auto &cs : j) {
+        if (cs.find("ipAddress") != cs.end()) {
+          ipAddress = cs.at("ipAddress");
+          std::cout << "ip address: " << ipAddress << std::endl;
+        }
+        if (cs.find("portNumber") != cs.end()) {
+          portNumber = cs.at("portNumber");
+          std::cout << "port number: " << portNumber << std::endl;
+        }
+      }
+    } else {
+      std::cerr << "The file that contains information about the server, streamer.json, does not exists." << std::endl;
+      std::cerr << "Thus use default values... ip address: " << ipAddress << ", port number: " << portNumber << std::endl;
+    }
+  }
 
   void PanelStreamer::buildUI(void *ImGuiCtx)
   {

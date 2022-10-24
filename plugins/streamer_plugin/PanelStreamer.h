@@ -16,9 +16,13 @@ namespace ospray {
     private:
       std::string panelName;
 
+      std::string ipAddress;
+      int portNumber;
       TCPSocket* tcpSocket;
       std::string status;
       float speedMultiplier;
+
+      void loadServerInfo();
     };
 
   }  // namespace streamer_plugin
