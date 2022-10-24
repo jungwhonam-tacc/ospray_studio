@@ -10,7 +10,7 @@ namespace ospray {
   PanelStreamer::PanelStreamer(std::shared_ptr<StudioContext> _context, std::string _panelName)
       : Panel(_panelName.c_str(), _context)
       , panelName(_panelName)
-  {}
+  { tcpSocket = 0; status = "Hello~"; }
 
   void PanelStreamer::buildUI(void *ImGuiCtx)
   {
