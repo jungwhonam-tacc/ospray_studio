@@ -18,6 +18,7 @@ namespace ospray {
 
       TCPSocket* tcpSocket;
       std::string status;
+      float speedMultiplier;
     };
 
   }  // namespace streamer_plugin

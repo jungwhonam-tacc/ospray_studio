@@ -10,7 +10,7 @@ namespace ospray {
   PanelStreamer::PanelStreamer(std::shared_ptr<StudioContext> _context, std::string _panelName)
       : Panel(_panelName.c_str(), _context)
       , panelName(_panelName)
-  { tcpSocket = 0; status = "Hello~"; }
+  { tcpSocket = 0; status = "Hello~"; speedMultiplier = 0.05f; }
 
   void PanelStreamer::buildUI(void *ImGuiCtx)
   {
@@ -28,10 +28,13 @@ namespace ospray {
 
       if (tcpSocket) { // tcpSocket is not NULL.
         ImGui::Text("%s", "Currently connected to the server...");
-        
+
         if (ImGui::Button("Disconnect")) {
           tcpSocket->Close();
         }
+
+        ImGui::Separator();
+        ImGui::SliderFloat("Rotating speed multiplier", &speedMultiplier, 0.01f, 0.1f);
       }
       else {
         ImGui::Text("%s", "Currently NOT connected to the server...");
@@ -46,6 +49,11 @@ namespace ospray {
           tcpSocket->onMessageReceived = [&](std::string message) {
               std::cout << "Message from the Server: " << message << std::endl;
               status = message;
+
+              vec2f from(0.f, 0.f);
+              vec2f to(std::stof(message) * speedMultiplier, 0.f);
+              context->arcballCamera->rotate(from, to);
+              context->updateCamera();
           };
           
           // On socket closed:
