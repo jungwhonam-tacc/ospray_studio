@@ -1,3 +1,5 @@
+#include <ctime>
+
 #include "PanelStreamer.h"
 
 #include "app/widgets/GenerateImGuiWidgets.h"
@@ -12,10 +14,9 @@ namespace ospray {
   PanelStreamer::PanelStreamer(std::shared_ptr<StudioContext> _context, std::string _panelName)
       : Panel(_panelName.c_str(), _context)
       , panelName(_panelName)
-  { ipAddress = "localhost"; portNumber = 8888; tcpSocket = 0; status = "Hello~"; speedMultiplier = 0.025f; loadServerInfo(); }
+  { ipAddress = "localhost"; portNumber = 8888; tcpSocket = 0; speedMultiplier = 0.025f; loadServerInfo(); }
 
   void PanelStreamer::loadServerInfo() {
-    // read from cams.json
     std::ifstream info("streamer.json");
     if (info) {
       JSON j;
@@ -23,17 +24,25 @@ namespace ospray {
       for (auto &cs : j) {
         if (cs.find("ipAddress") != cs.end()) {
           ipAddress = cs.at("ipAddress");
-          std::cout << "ip address: " << ipAddress << std::endl;
+          addStatus("Read from streamer.json... ip address: " + ipAddress);
         }
         if (cs.find("portNumber") != cs.end()) {
           portNumber = cs.at("portNumber");
-          std::cout << "port number: " << portNumber << std::endl;
+          addStatus("Read from streamer.json... port number: " + std::to_string(portNumber));
         }
       }
     } else {
-      std::cerr << "The file that contains information about the server, streamer.json, does not exists." << std::endl;
-      std::cerr << "Thus use default values... ip address: " << ipAddress << ", port number: " << portNumber << std::endl;
+      addStatus("Using default values... ip address: " + ipAddress + ", port number: " + std::to_string(portNumber));
     }
+  }
+
+  void PanelStreamer::addStatus(std::string status) {
+    // write time before status
+    time_t now = time(0);
+    tm *ltm = localtime(&now);
+    status.insert(0, "(" + std::to_string(ltm->tm_hour) + ":" + std::to_string(ltm->tm_min) + ":" + std::to_string(ltm->tm_sec) + ") ");
+
+    statuses.push_back(status);
   }
 
   void PanelStreamer::buildUI(void *ImGuiCtx)
@@ -42,14 +51,7 @@ namespace ospray {
     ImGui::SetCurrentContext((ImGuiContext *)ImGuiCtx);
     ImGui::OpenPopup(panelName.c_str());
 
-    if (ImGui::BeginPopupModal(
-            panelName.c_str(), nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
-      ImGui::Text("%s", "The Streamer Plugin receives data from Gesture Tracking Server.");
-      ImGui::Separator();
-
-      ImGui::Text("Status: \n%s", status.c_str());
-      ImGui::Separator();
-
+    if (ImGui::BeginPopupModal(panelName.c_str(), nullptr, ImGuiWindowFlags_None)) {
       if (tcpSocket) { // tcpSocket is not NULL.
         ImGui::Text("%s", "Currently connected to the server...");
 
@@ -58,22 +60,20 @@ namespace ospray {
         }
 
         ImGui::Separator();
-        ImGui::SliderFloat("Rotating speed multiplier", &speedMultiplier, 0.01f, 0.1f);
+        ImGui::SliderFloat("Speed multiplier", &speedMultiplier, 0.01f, 0.1f);
       }
-      else {
+      else { // tcpSocket is NULL.
         ImGui::Text("%s", "Currently NOT connected to the server...");
 
         if (ImGui::Button("Connect")) {
           // Initialize socket.
-          tcpSocket = new TCPSocket([](int errorCode, std::string errorMessage){
-              std::cout << "Socket creation error:" << errorCode << " : " << errorMessage << std::endl;
+          tcpSocket = new TCPSocket([&](int errorCode, std::string errorMessage){
+              addStatus("Socket creation error: " + std::to_string(errorCode) + " : " + errorMessage);
           });
 
           // Start receiving from the host.
           tcpSocket->onMessageReceived = [&](std::string message) {
-              std::cout << "Message from the Server: " << message << std::endl;
-              status = message;
-
+              // std::cout << "Message from the Server: " << message << std::endl;
               vec2f from(0.f, 0.f);
               vec2f to(std::stof(message) * speedMultiplier, 0.f);
               context->arcballCamera->rotate(from, to);
@@ -82,18 +82,17 @@ namespace ospray {
           
           // On socket closed:
           tcpSocket->onSocketClosed = [&](int errorCode){
-              std::cout << "Connection closed: " << errorCode << std::endl;
+              addStatus("Connection closed: " + std::to_string(errorCode));
               delete tcpSocket;
-              tcpSocket = NULL;
+              tcpSocket = 0;
           };
 
           // Connect to the host.
           tcpSocket->Connect("localhost", 8888, [&] {
-              std::cout << "Connected to the server successfully." << std::endl;
+            addStatus("Connected to the server successfully.");
           },
-          [](int errorCode, std::string errorMessage){
-              // CONNECTION FAILED
-              std::cout << errorCode << " : " << errorMessage << std::endl;
+          [&](int errorCode, std::string errorMessage){
+            addStatus(std::to_string(errorCode) + " : " + errorMessage);
           });
         }
       } 
@@ -103,6 +102,14 @@ namespace ospray {
         setShown(false);
         ImGui::CloseCurrentPopup();
       }
+
+      // Display statuses in a scrolling region
+      ImGui::Separator();
+      ImGui::BeginChild("Scrolling", ImVec2(0, 0), false, ImGuiWindowFlags_AlwaysAutoResize);
+      for (std::string status : statuses) {
+        ImGui::Text("%s", status.c_str());
+      }
+      ImGui::EndChild();
 
       ImGui::EndPopup();
     }

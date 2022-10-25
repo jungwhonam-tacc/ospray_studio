@@ -19,10 +19,11 @@ namespace ospray {
       std::string ipAddress;
       int portNumber;
       TCPSocket* tcpSocket;
-      std::string status;
+      std::list<std::string> statuses;
       float speedMultiplier;
 
       void loadServerInfo();
+      void addStatus(std::string status);
     };
 
   }  // namespace streamer_plugin
