@@ -14,7 +14,7 @@ namespace ospray {
   PanelStreamer::PanelStreamer(std::shared_ptr<StudioContext> _context, std::string _panelName)
       : Panel(_panelName.c_str(), _context)
       , panelName(_panelName)
-  { ipAddress = "localhost"; portNumber = 8888; tcpSocket = 0; speedMultiplier = 0.025f; loadServerInfo(); }
+  { ipAddress = "localhost"; portNumber = 8888; tcpSocket = 0; speedMultiplier = 0.0001f; loadServerInfo(); }
 
   void PanelStreamer::loadServerInfo() {
     std::ifstream info("streamer.json");
@@ -60,7 +60,7 @@ namespace ospray {
         }
 
         ImGui::Separator();
-        ImGui::SliderFloat("Speed multiplier", &speedMultiplier, 0.01f, 0.1f);
+        ImGui::SliderFloat("Speed multiplier", &speedMultiplier, 0.0001f, 0.001f, "%.4f");
       }
       else { // tcpSocket is NULL.
         ImGui::Text("%s", "Currently NOT connected to the server...");
@@ -73,11 +73,34 @@ namespace ospray {
 
           // Start receiving from the host.
           tcpSocket->onMessageReceived = [&](std::string message) {
-              // std::cout << "Message from the Server: " << message << std::endl;
+            // std::cout << "Message from the Server: " << message << std::endl;
+
+            nlohmann::ordered_json j = nlohmann::ordered_json::parse(message);
+
+            if (j == nullptr || j["HAND_LEFT"] == nullptr || j["HAND_RIGHT"] == nullptr || j["SPINE_CHEST"]  == nullptr) return;
+
+            float yPivot = j["SPINE_CHEST"].at(1);
+            float yRelLeft = j["HAND_LEFT"].at(1) - yPivot;
+            float yRelRight = j["HAND_RIGHT"].at(1) - yPivot;
+
+            float threadhold = 0;
+            if (yRelLeft < threadhold && yRelRight < threadhold) { // both hands are up.
+
+            } else if (yRelLeft < threadhold) { // only left hand is up.
+              // rotate the cam clockwise
               vec2f from(0.f, 0.f);
-              vec2f to(std::stof(message) * speedMultiplier, 0.f);
+              vec2f to(yRelLeft * speedMultiplier, 0.f);
               context->arcballCamera->rotate(from, to);
               context->updateCamera();
+            } else if (yRelRight < threadhold) { // only right hand is up.
+              // rotate the cam clockwise
+              vec2f from(0.f, 0.f);
+              vec2f to(-yRelRight * speedMultiplier, 0.f);
+              context->arcballCamera->rotate(from, to);
+              context->updateCamera();
+            } else { // both hands are down.
+
+            }
           };
           
           // On socket closed:
