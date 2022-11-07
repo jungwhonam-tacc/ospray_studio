@@ -84,22 +84,20 @@ namespace ospray {
             float yRelRight = j["HAND_RIGHT"].at(1) - yPivot;
 
             float threadhold = 0;
-            if (yRelLeft < threadhold && yRelRight < threadhold) { // both hands are up.
+            if (yRelLeft >= threadhold && yRelRight >= threadhold) { // both hands are down.
 
-            } else if (yRelLeft < threadhold) { // only left hand is up.
-              // rotate the cam clockwise
+            } else if (yRelLeft < threadhold && yRelRight < threadhold) { // both hands are up.
+
+            } else { // only one hand is up.
+              std::string jointID = yRelLeft < threadhold ? "HAND_LEFT" : "HAND_RIGHT";
+              float dist = sqrt(
+                pow((float) j[jointID].at(0) - j["SPINE_CHEST"].at(0), 2.0) + 
+                pow((float) j[jointID].at(1) - j["SPINE_CHEST"].at(1), 2.0) + 
+                pow((float) j[jointID].at(2) - j["SPINE_CHEST"].at(2), 2.0));
               vec2f from(0.f, 0.f);
-              vec2f to(yRelLeft * speedMultiplier, 0.f);
+              vec2f to((yRelLeft < threadhold ? -1 : 1) * dist * speedMultiplier, 0.f);
               context->arcballCamera->rotate(from, to);
               context->updateCamera();
-            } else if (yRelRight < threadhold) { // only right hand is up.
-              // rotate the cam clockwise
-              vec2f from(0.f, 0.f);
-              vec2f to(-yRelRight * speedMultiplier, 0.f);
-              context->arcballCamera->rotate(from, to);
-              context->updateCamera();
-            } else { // both hands are down.
-
             }
           };
           
