@@ -2,7 +2,7 @@
 
 #include "app/widgets/Panel.h"
 #include "app/ospStudio.h"
-#include "async-sockets/tcpsocket.hpp"
+#include "tcpsocket.hpp"
 
 namespace ospray {
   namespace streamer_plugin {

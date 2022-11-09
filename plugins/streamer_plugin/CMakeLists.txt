@@ -1,6 +1,6 @@
 option(BUILD_PLUGIN_STREAMER "Streamer plugin" OFF)
 
-if (BUILD_PLUGIN_STREAMER)
+if (BUILD_PLUGIN_STREAMER)  
   set( pluginName "ospray_studio_plugin_streamer")
 
   add_library(${pluginName} SHARED
@@ -12,6 +12,10 @@ if (BUILD_PLUGIN_STREAMER)
 
   # Only link against imgui if needed (ie, pure file importers don't)
   target_link_libraries(${pluginName} imgui)
+
+  # Add external libraries for this plugin
+  add_subdirectory(external)
+  target_link_libraries(${pluginName} network)
 
   target_include_directories(${pluginName}
     PRIVATE ${CMAKE_SOURCE_DIR}
