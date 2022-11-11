@@ -84,9 +84,9 @@ namespace ospray {
 
             if (j == nullptr || j["HAND_LEFT"] == nullptr || j["HAND_RIGHT"] == nullptr || j["SPINE_CHEST"]  == nullptr) return;
 
-            float yPivot = j["SPINE_CHEST"].at(1);
-            float yRelLeft = j["HAND_LEFT"].at(1) - yPivot;
-            float yRelRight = j["HAND_RIGHT"].at(1) - yPivot;
+            float yPivot = j["SPINE_CHEST"][1].get<float>();
+            float yRelLeft = j["HAND_LEFT"][1].get<float>() - yPivot;
+            float yRelRight = j["HAND_RIGHT"][1].get<float>() - yPivot;
 
             float threadhold = 0;
             if (yRelLeft >= threadhold && yRelRight >= threadhold) { // both hands are down.
@@ -96,9 +96,9 @@ namespace ospray {
             } else { // only one hand is up.
               std::string jointID = yRelLeft < threadhold ? "HAND_LEFT" : "HAND_RIGHT";
               float dist = sqrt(
-                pow((float) j[jointID].at(0) - j["SPINE_CHEST"].at(0), 2.0) + 
-                pow((float) j[jointID].at(1) - j["SPINE_CHEST"].at(1), 2.0) + 
-                pow((float) j[jointID].at(2) - j["SPINE_CHEST"].at(2), 2.0));
+                pow(j[jointID][0].get<float>() - j["SPINE_CHEST"][0].get<float>(), 2.0) + 
+                pow(j[jointID][1].get<float>() - j["SPINE_CHEST"][1].get<float>(), 2.0) + 
+                pow(j[jointID][2].get<float>() - j["SPINE_CHEST"][2].get<float>(), 2.0));
               vec2f from(0.f, 0.f);
               vec2f to((yRelLeft < threadhold ? -1 : 1) * dist * speedMultiplier, 0.f);
               context->arcballCamera->rotate(from, to);
