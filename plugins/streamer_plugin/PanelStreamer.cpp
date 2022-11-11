@@ -14,7 +14,7 @@ namespace ospray {
   PanelStreamer::PanelStreamer(std::shared_ptr<StudioContext> _context, std::string _panelName)
       : Panel(_panelName.c_str(), _context)
       , panelName(_panelName)
-  { ipAddress = "localhost"; portNumber = 8888; tcpSocket = 0; speedMultiplier = 0.0001f; loadServerInfo(); }
+  { ipAddress = "localhost"; portNumber = 8888; tcpSocket = nullptr; speedMultiplier = 0.0001f; loadServerInfo(); }
 
   void PanelStreamer::loadServerInfo() {
     std::ifstream info("streamer.json");
@@ -47,12 +47,17 @@ namespace ospray {
 
   void PanelStreamer::buildUI(void *ImGuiCtx)
   {
+    if (tcpSocket != nullptr && tcpSocket->isClosed) {
+      delete tcpSocket;
+      tcpSocket = nullptr;
+    }
+
     // Need to set ImGuiContext in *this* address space
     ImGui::SetCurrentContext((ImGuiContext *)ImGuiCtx);
     ImGui::OpenPopup(panelName.c_str());
 
     if (ImGui::BeginPopupModal(panelName.c_str(), nullptr, ImGuiWindowFlags_None)) {
-      if (tcpSocket) { // tcpSocket is not NULL.
+      if (tcpSocket != nullptr) { // tcpSocket is not NULL.
         ImGui::Text("%s", "Currently connected to the server...");
 
         if (ImGui::Button("Disconnect")) {
@@ -104,8 +109,6 @@ namespace ospray {
           // On socket closed:
           tcpSocket->onSocketClosed = [&](int errorCode){
               addStatus("Connection closed: " + std::to_string(errorCode));
-              delete tcpSocket;
-              tcpSocket = 0;
           };
 
           // Connect to the host.
@@ -114,9 +117,10 @@ namespace ospray {
           },
           [&](int errorCode, std::string errorMessage){
             addStatus(std::to_string(errorCode) + " : " + errorMessage);
+            tcpSocket->Close();
           });
         }
-      } 
+      }
 
       ImGui::Separator();
       if (ImGui::Button("Close")) {
