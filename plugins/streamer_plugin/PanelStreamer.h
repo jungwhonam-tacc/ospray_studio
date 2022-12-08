@@ -24,6 +24,7 @@ namespace ospray {
 
       void loadServerInfo();
       void addStatus(std::string status);
+      void addVisuals();
     };
 
   }  // namespace streamer_plugin

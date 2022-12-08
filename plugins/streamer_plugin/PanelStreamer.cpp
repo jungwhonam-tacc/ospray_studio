@@ -14,7 +14,14 @@ namespace ospray {
   PanelStreamer::PanelStreamer(std::shared_ptr<StudioContext> _context, std::string _panelName)
       : Panel(_panelName.c_str(), _context)
       , panelName(_panelName)
-  { ipAddress = "localhost"; portNumber = 8888; tcpSocket = nullptr; speedMultiplier = 0.0001f; loadServerInfo(); }
+  {
+    ipAddress = "localhost";
+    portNumber = 8888;
+    tcpSocket = nullptr;
+    speedMultiplier = 0.0001f;
+    loadServerInfo();
+    addVisuals();
+  }
 
   void PanelStreamer::loadServerInfo() {
     std::ifstream info("streamer.json");
@@ -66,14 +73,14 @@ namespace ospray {
 
         ImGui::Separator();
         ImGui::SliderFloat("Speed multiplier", &speedMultiplier, 0.0001f, 0.001f, "%.4f");
-      }
+      } 
       else { // tcpSocket is NULL.
         ImGui::Text("%s", "Currently NOT connected to the server...");
 
         if (ImGui::Button("Connect")) {
           // Initialize socket.
           tcpSocket = new TCPSocket([&](int errorCode, std::string errorMessage){
-              addStatus("Socket creation error: " + std::to_string(errorCode) + " : " + errorMessage);
+            addStatus("Socket creation error: " + std::to_string(errorCode) + " : " + errorMessage);
           });
 
           // Start receiving from the host.
@@ -105,15 +112,15 @@ namespace ospray {
               context->updateCamera();
             }
           };
-          
+
           // On socket closed:
           tcpSocket->onSocketClosed = [&](int errorCode){
-              addStatus("Connection closed: " + std::to_string(errorCode));
+            addStatus("Connection closed: " + std::to_string(errorCode));
           };
 
           // Connect to the host.
-          tcpSocket->Connect("localhost", 8888, [&] {
-            addStatus("Connected to the server successfully.");
+          tcpSocket->Connect("localhost", 8888, [&] { 
+            addStatus("Connected to the server successfully."); 
           },
           [&](int errorCode, std::string errorMessage){
             addStatus(std::to_string(errorCode) + " : " + errorMessage);
@@ -138,6 +145,12 @@ namespace ospray {
 
       ImGui::EndPopup();
     }
+  }
+
+  void PanelStreamer::addVisuals()
+  {
+    auto &world = context->frame->child("world");
+    world.createChildAs<sg::Generator>("axes_generator", "generator_axes");
   }
 
   }  // namespace streamer_plugin

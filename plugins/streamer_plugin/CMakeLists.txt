@@ -6,6 +6,7 @@ if (BUILD_PLUGIN_STREAMER)
   add_library(${pluginName} SHARED
     plugin_streamer.cpp
     PanelStreamer.cpp
+    generator/Axes.cpp
   )
 
   target_link_libraries(${pluginName} ospray_sg ospray_ui)
