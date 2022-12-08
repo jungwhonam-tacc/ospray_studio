@@ -87,7 +87,13 @@ namespace ospray {
           tcpSocket->onMessageReceived = [&](std::string message) {
             // std::cout << "Message from the Server: " << message << std::endl;
 
-            nlohmann::ordered_json j = nlohmann::ordered_json::parse(message);
+            nlohmann::ordered_json j;
+            try {
+              j = nlohmann::ordered_json::parse(message);
+            } catch (nlohmann::json::exception& e) {
+              std::cout << "Parse exception: " << e.what() << std::endl;
+              return;
+            }
 
             if (j == nullptr || j["HAND_LEFT"] == nullptr || j["HAND_RIGHT"] == nullptr || j["SPINE_CHEST"]  == nullptr) return;
 
