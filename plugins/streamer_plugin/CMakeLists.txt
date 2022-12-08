@@ -7,6 +7,7 @@ if (BUILD_PLUGIN_STREAMER)
     plugin_streamer.cpp
     PanelStreamer.cpp
     generator/Axes.cpp
+    generator/Gestures.cpp
   )
 
   target_link_libraries(${pluginName} ospray_sg ospray_ui)

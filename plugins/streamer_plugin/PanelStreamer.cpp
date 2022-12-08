@@ -91,25 +91,24 @@ namespace ospray {
 
             if (j == nullptr || j["HAND_LEFT"] == nullptr || j["HAND_RIGHT"] == nullptr || j["SPINE_CHEST"]  == nullptr) return;
 
-            float yPivot = j["SPINE_CHEST"][1].get<float>();
-            float yRelLeft = j["HAND_LEFT"][1].get<float>() - yPivot;
-            float yRelRight = j["HAND_RIGHT"][1].get<float>() - yPivot;
-
-            float threadhold = 0;
-            if (yRelLeft >= threadhold && yRelRight >= threadhold) { // both hands are down.
-
-            } else if (yRelLeft < threadhold && yRelRight < threadhold) { // both hands are up.
-
-            } else { // only one hand is up.
-              std::string jointID = yRelLeft < threadhold ? "HAND_LEFT" : "HAND_RIGHT";
-              float dist = sqrt(
-                pow(j[jointID][0].get<float>() - j["SPINE_CHEST"][0].get<float>(), 2.0) + 
-                pow(j[jointID][1].get<float>() - j["SPINE_CHEST"][1].get<float>(), 2.0) + 
-                pow(j[jointID][2].get<float>() - j["SPINE_CHEST"][2].get<float>(), 2.0));
-              vec2f from(0.f, 0.f);
-              vec2f to((yRelLeft < threadhold ? -1 : 1) * dist * speedMultiplier, 0.f);
-              context->arcballCamera->rotate(from, to);
-              context->updateCamera();
+            auto &joints = context->frame->child("world").child("gestures_generator").child("joints");
+            {
+              vec3f src = j["HAND_LEFT"].get<vec3f>();
+              vec3f pos(-src[0], -src[1], src[2]);
+              auto &joint = joints.child("joint0");
+              joint.createChildData("sphere.position", pos * 0.001f);
+            }
+            {
+              vec3f src = j["HAND_RIGHT"].get<vec3f>();
+              vec3f pos(-src[0], -src[1], src[2]);
+              auto &joint = joints.child("joint1");
+              joint.createChildData("sphere.position", pos * 0.001f);
+            }
+            {
+              vec3f src = j["SPINE_CHEST"].get<vec3f>();
+              vec3f pos(-src[0], -src[1], src[2]);
+              auto &joint = joints.child("joint2");
+              joint.createChildData("sphere.position", pos * 0.001f);
             }
           };
 
@@ -151,6 +150,7 @@ namespace ospray {
   {
     auto &world = context->frame->child("world");
     world.createChildAs<sg::Generator>("axes_generator", "generator_axes");
+    world.createChildAs<sg::Generator>("gestures_generator", "generator_gestures");
   }
 
   }  // namespace streamer_plugin
