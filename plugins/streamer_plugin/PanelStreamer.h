@@ -20,7 +20,10 @@ namespace ospray {
       int portNumber;
       TCPSocket* tcpSocket;
       std::list<std::string> statuses;
-      float speedMultiplier;
+
+      float scaleOffset[3];
+      float rotationOffset[3];
+      float translationOffset[3];
 
       void loadServerInfo();
       void addStatus(std::string status);

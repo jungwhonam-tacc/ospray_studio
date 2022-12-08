@@ -6,6 +6,8 @@
 
 #include "sg/JSONDefs.h"
 
+#include "sg/Math.h"
+
 #include "imgui.h"
 
 namespace ospray {
@@ -18,9 +20,16 @@ namespace ospray {
     ipAddress = "localhost";
     portNumber = 8888;
     tcpSocket = nullptr;
-    speedMultiplier = 0.0001f;
     loadServerInfo();
     addVisuals();
+
+    scaleOffset[0] = -0.001;
+    scaleOffset[1] = -0.001;
+    scaleOffset[2] = 0.001;
+    for (int i = 0; i < 3; i++) {
+      rotationOffset[i] = 0;
+      translationOffset[i] = 0;
+    }
   }
 
   void PanelStreamer::loadServerInfo() {
@@ -72,7 +81,10 @@ namespace ospray {
         }
 
         ImGui::Separator();
-        ImGui::SliderFloat("Speed multiplier", &speedMultiplier, 0.0001f, 0.001f, "%.4f");
+        ImGui::Text("%s", "Apply offset(s)...");
+        ImGui::DragFloat3("Scale", scaleOffset, 0.0001);
+        ImGui::DragFloat3("Rotate (euler angles)", rotationOffset, .1, -180, 180, "%.1f");
+        ImGui::DragFloat3("Translate", translationOffset, .1, -1000, 1000, "%.1f");
       } 
       else { // tcpSocket is NULL.
         ImGui::Text("%s", "Currently NOT connected to the server...");
@@ -98,23 +110,25 @@ namespace ospray {
             if (j == nullptr || j["HAND_LEFT"] == nullptr || j["HAND_RIGHT"] == nullptr || j["SPINE_CHEST"]  == nullptr) return;
 
             auto &joints = context->frame->child("world").child("gestures_generator").child("joints");
+            
+            // offset
+            const AffineSpace3f s = AffineSpace3f::scale(vec3f(scaleOffset));
+            const AffineSpace3f r = LinearSpace3f(sg::eulerToQuaternion(deg2rad(vec3f(rotationOffset))));
+            const AffineSpace3f t = AffineSpace3f::translate(vec3f(translationOffset));
             {
-              vec3f src = j["HAND_LEFT"].get<vec3f>();
-              vec3f pos(-src[0], -src[1], src[2]);
+              vec3f pos = j["HAND_LEFT"].get<vec3f>();
               auto &joint = joints.child("joint0");
-              joint.createChildData("sphere.position", pos * 0.001f);
+              joint.createChildData("sphere.position", xfmPoint(t * r * s, pos));
             }
             {
-              vec3f src = j["HAND_RIGHT"].get<vec3f>();
-              vec3f pos(-src[0], -src[1], src[2]);
+              vec3f pos = j["HAND_RIGHT"].get<vec3f>();
               auto &joint = joints.child("joint1");
-              joint.createChildData("sphere.position", pos * 0.001f);
+              joint.createChildData("sphere.position", xfmPoint(t * r * s, pos));
             }
             {
-              vec3f src = j["SPINE_CHEST"].get<vec3f>();
-              vec3f pos(-src[0], -src[1], src[2]);
+              vec3f pos = j["SPINE_CHEST"].get<vec3f>();
               auto &joint = joints.child("joint2");
-              joint.createChildData("sphere.position", pos * 0.001f);
+              joint.createChildData("sphere.position", xfmPoint(t * r * s, pos));
             }
           };
 
