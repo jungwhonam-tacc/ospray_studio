@@ -118,7 +118,7 @@ namespace ospray {
           };
 
           // Connect to the host.
-          tcpSocket->Connect("localhost", 8888, [&] { 
+          tcpSocket->Connect(ipAddress, portNumber, [&] { 
             addStatus("Connected to the server successfully."); 
           },
           [&](int errorCode, std::string errorMessage){
