@@ -20,36 +20,74 @@ namespace ospray {
     ipAddress = "localhost";
     portNumber = 8888;
     tcpSocket = nullptr;
-    loadServerInfo();
-    addVisuals();
-
-    scaleOffset[0] = -0.001;
-    scaleOffset[1] = -0.001;
-    scaleOffset[2] = 0.001;
+    
+    scaleOffset[0] = -0.001f;
+    scaleOffset[1] = -0.001f;
+    scaleOffset[2] = 0.001f;
     for (int i = 0; i < 3; i++) {
-      rotationOffset[i] = 0;
-      translationOffset[i] = 0;
+      rotationOffset[i] = 0.f;
+      translationOffset[i] = 0.f;
     }
+
+    loadConfig();
+    addVisuals();
   }
 
-  void PanelStreamer::loadServerInfo() {
+  void PanelStreamer::loadConfig() {
     std::ifstream info("streamer.json");
-    if (info) {
-      JSON j;
-      info >> j;
-      for (auto &cs : j) {
-        if (cs.find("ipAddress") != cs.end()) {
-          ipAddress = cs.at("ipAddress");
-          addStatus("Read from streamer.json... ip address: " + ipAddress);
-        }
-        if (cs.find("portNumber") != cs.end()) {
-          portNumber = cs.at("portNumber");
-          addStatus("Read from streamer.json... port number: " + std::to_string(portNumber));
-        }
-      }
-    } else {
-      addStatus("Using default values... ip address: " + ipAddress + ", port number: " + std::to_string(portNumber));
+
+    if (!info) {
+      addStatus("Failed to load streamer.json... using default values...");
+      return;
     }
+
+    JSON j;
+    try {
+      info >> j;
+    } catch (nlohmann::json::exception& e) {
+      addStatus("Failed to parse streamer.json... using default values...");
+      return;
+    }
+
+    if (j.contains("ipAddress")) {
+      ipAddress = j["ipAddress"].get<std::string>();
+    }
+    if (j.contains("portNumber")) {
+      portNumber = j["portNumber"].get<int>();
+    }
+    if (j.contains("scaleOffset")) {
+      std::vector<float> vals = j["scaleOffset"];
+      scaleOffset[0] = vals[0];
+      scaleOffset[1] = vals[1];
+      scaleOffset[2] = vals[2];
+    }
+    if (j.contains("rotationOffset")) {
+      std::vector<float> vals = j["rotationOffset"];
+      rotationOffset[0] = vals[0];
+      rotationOffset[1] = vals[1];
+      rotationOffset[2] = vals[2];
+    }
+    if (j.contains("translationOffset")) {
+      std::vector<float> vals = j["translationOffset"];
+      translationOffset[0] = vals[0];
+      translationOffset[1] = vals[1];
+      translationOffset[2] = vals[2];
+    }
+    addStatus("Loaded the configuration from streamer.json...");
+  }
+
+  void PanelStreamer::saveConfig() {
+    std::ofstream config("streamer.json");
+
+    JSON j;
+    j["ipAddress"] = ipAddress;
+    j["portNumber"] = portNumber;
+    j["scaleOffset"] = scaleOffset;
+    j["rotationOffset"] = rotationOffset;
+    j["translationOffset"] = translationOffset;
+
+    config << std::setw(4) << j << std::endl;
+    addStatus("Saved the configuration to streamer.json...");
   }
 
   void PanelStreamer::addStatus(std::string status) {
@@ -72,98 +110,116 @@ namespace ospray {
     ImGui::SetCurrentContext((ImGuiContext *)ImGuiCtx);
     ImGui::OpenPopup(panelName.c_str());
 
-    if (ImGui::BeginPopupModal(panelName.c_str(), nullptr, ImGuiWindowFlags_None)) {
-      if (tcpSocket != nullptr) { // tcpSocket is not NULL.
-        ImGui::Text("%s", "Currently connected to the server...");
+    if (!ImGui::BeginPopupModal(panelName.c_str(), nullptr, ImGuiWindowFlags_None)) return;
 
-        if (ImGui::Button("Disconnect")) {
+    // Network connection
+    if (tcpSocket != nullptr) { // tcpSocket is not NULL.
+      ImGui::Text("%s", "Currently connected to the server...");
+
+      if (ImGui::Button("Disconnect")) {
+        tcpSocket->Close();
+      }
+    } 
+    else { // tcpSocket is NULL.
+      ImGui::Text("%s", "Currently NOT connected to the server...");
+      std::string str = "- Connect to " + ipAddress + ":" + std::to_string(portNumber);
+      ImGui::Text("%s", str.c_str());
+
+      if (ImGui::Button("Connect")) {
+        // Initialize socket.
+        tcpSocket = new TCPSocket([&](int errorCode, std::string errorMessage){
+          addStatus("Socket creation error: " + std::to_string(errorCode) + " : " + errorMessage);
+        });
+
+        // Start receiving from the host.
+        tcpSocket->onMessageReceived = [&](std::string message) {
+          // std::cout << "Message from the Server: " << message << std::endl;
+
+          nlohmann::ordered_json j;
+          try {
+            j = nlohmann::ordered_json::parse(message);
+          } catch (nlohmann::json::exception& e) {
+            std::cout << "Parse exception: " << e.what() << std::endl;
+            return;
+          }
+
+          if (j == nullptr || j["HAND_LEFT"] == nullptr || j["HAND_RIGHT"] == nullptr || j["SPINE_CHEST"]  == nullptr) return;
+
+          auto &joints = context->frame->child("world").child("gestures_generator").child("joints");
+
+          // offset
+          const AffineSpace3f s = AffineSpace3f::scale(vec3f(scaleOffset));
+          const AffineSpace3f r = LinearSpace3f(sg::eulerToQuaternion(deg2rad(vec3f(rotationOffset))));
+          const AffineSpace3f t = AffineSpace3f::translate(vec3f(translationOffset));
+          {
+            vec3f pos = j["HAND_LEFT"].get<vec3f>();
+            auto &joint = joints.child("joint0");
+            joint.createChildData("sphere.position", xfmPoint(t * r * s, pos));
+          }
+          {
+            vec3f pos = j["HAND_RIGHT"].get<vec3f>();
+            auto &joint = joints.child("joint1");
+            joint.createChildData("sphere.position", xfmPoint(t * r * s, pos));
+          }
+          {
+            vec3f pos = j["SPINE_CHEST"].get<vec3f>();
+            auto &joint = joints.child("joint2");
+            joint.createChildData("sphere.position", xfmPoint(t * r * s, pos));
+          }
+        };
+
+        // On socket closed:
+        tcpSocket->onSocketClosed = [&](int errorCode){
+          addStatus("Connection closed: " + std::to_string(errorCode));
+        };
+
+        // Connect to the host.
+        tcpSocket->Connect(ipAddress, portNumber, [&] { 
+          addStatus("Connected to the server successfully."); 
+        },
+        [&](int errorCode, std::string errorMessage){
+          addStatus(std::to_string(errorCode) + " : " + errorMessage);
           tcpSocket->Close();
-        }
-
-        ImGui::Separator();
-        ImGui::Text("%s", "Apply offset(s)...");
-        ImGui::DragFloat3("Scale", scaleOffset, 0.0001);
-        ImGui::DragFloat3("Rotate (euler angles)", rotationOffset, .1, -180, 180, "%.1f");
-        ImGui::DragFloat3("Translate", translationOffset, .1, -1000, 1000, "%.1f");
-      } 
-      else { // tcpSocket is NULL.
-        ImGui::Text("%s", "Currently NOT connected to the server...");
-
-        if (ImGui::Button("Connect")) {
-          // Initialize socket.
-          tcpSocket = new TCPSocket([&](int errorCode, std::string errorMessage){
-            addStatus("Socket creation error: " + std::to_string(errorCode) + " : " + errorMessage);
-          });
-
-          // Start receiving from the host.
-          tcpSocket->onMessageReceived = [&](std::string message) {
-            // std::cout << "Message from the Server: " << message << std::endl;
-
-            nlohmann::ordered_json j;
-            try {
-              j = nlohmann::ordered_json::parse(message);
-            } catch (nlohmann::json::exception& e) {
-              std::cout << "Parse exception: " << e.what() << std::endl;
-              return;
-            }
-
-            if (j == nullptr || j["HAND_LEFT"] == nullptr || j["HAND_RIGHT"] == nullptr || j["SPINE_CHEST"]  == nullptr) return;
-
-            auto &joints = context->frame->child("world").child("gestures_generator").child("joints");
-            
-            // offset
-            const AffineSpace3f s = AffineSpace3f::scale(vec3f(scaleOffset));
-            const AffineSpace3f r = LinearSpace3f(sg::eulerToQuaternion(deg2rad(vec3f(rotationOffset))));
-            const AffineSpace3f t = AffineSpace3f::translate(vec3f(translationOffset));
-            {
-              vec3f pos = j["HAND_LEFT"].get<vec3f>();
-              auto &joint = joints.child("joint0");
-              joint.createChildData("sphere.position", xfmPoint(t * r * s, pos));
-            }
-            {
-              vec3f pos = j["HAND_RIGHT"].get<vec3f>();
-              auto &joint = joints.child("joint1");
-              joint.createChildData("sphere.position", xfmPoint(t * r * s, pos));
-            }
-            {
-              vec3f pos = j["SPINE_CHEST"].get<vec3f>();
-              auto &joint = joints.child("joint2");
-              joint.createChildData("sphere.position", xfmPoint(t * r * s, pos));
-            }
-          };
-
-          // On socket closed:
-          tcpSocket->onSocketClosed = [&](int errorCode){
-            addStatus("Connection closed: " + std::to_string(errorCode));
-          };
-
-          // Connect to the host.
-          tcpSocket->Connect(ipAddress, portNumber, [&] { 
-            addStatus("Connected to the server successfully."); 
-          },
-          [&](int errorCode, std::string errorMessage){
-            addStatus(std::to_string(errorCode) + " : " + errorMessage);
-            tcpSocket->Close();
-          });
-        }
+        });
       }
+    }
+    ImGui::Separator();
 
+    // Close button
+    if (ImGui::Button("Close")) {
+      setShown(false);
+      ImGui::CloseCurrentPopup();
+    }
+    ImGui::Separator();
+
+    if (ImGui::CollapsingHeader("Configuration", ImGuiTreeNodeFlags_DefaultOpen)) {
+      // ImGui::InputText("IP Adress", ipAddress, IM_ARRAYSIZE(ipAddress));
+      // ImGui::InputInt("Port Number", &portNumber);
+      ImGui::DragFloat3("Scale", scaleOffset, 0.0001, -1000, 1000, "%.3f");
+      ImGui::DragFloat3("Rotate (euler angles)", rotationOffset, .1, -180, 180, "%.1f");
+      ImGui::DragFloat3("Translate", translationOffset, .1, -1000, 1000, "%.1f");
       ImGui::Separator();
-      if (ImGui::Button("Close")) {
-        setShown(false);
-        ImGui::CloseCurrentPopup();
+      if (ImGui::Button("Save")) {
+        saveConfig();
       }
+      ImGui::SameLine();
+      if (ImGui::Button("Load")) {
+        loadConfig();
+      }
+    }
+    ImGui::Separator();
 
-      // Display statuses in a scrolling region
-      ImGui::Separator();
+    // Display statuses in a scrolling region
+    if (ImGui::CollapsingHeader("Status", ImGuiTreeNodeFlags_DefaultOpen)) {
       ImGui::BeginChild("Scrolling", ImVec2(0, 0), false, ImGuiWindowFlags_AlwaysAutoResize);
       for (std::string status : statuses) {
         ImGui::Text("%s", status.c_str());
       }
       ImGui::EndChild();
-
-      ImGui::EndPopup();
     }
+    ImGui::Separator();
+
+    ImGui::EndPopup();
   }
 
   void PanelStreamer::addVisuals()

@@ -25,7 +25,9 @@ namespace ospray {
       float rotationOffset[3];
       float translationOffset[3];
 
-      void loadServerInfo();
+      void loadConfig();
+      void saveConfig();
+
       void addStatus(std::string status);
       void addVisuals();
     };
