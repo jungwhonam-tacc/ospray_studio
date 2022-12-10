@@ -1,5 +1,7 @@
 #include "sg/generator/Generator.h"
 
+#include "../Util.h"
+
 namespace ospray {
   namespace sg {
 
@@ -18,7 +20,7 @@ namespace ospray {
   Gestures::Gestures()
   {
     auto &parameters = child("parameters");
-    parameters.createChild("radius", "float", .1f);
+    parameters.createChild("radius", "float", .025f);
     parameters.child("radius").setMinMax(.01f, 2.00f);
 
     auto &joints = createChild("joints", "transform");
@@ -31,8 +33,8 @@ namespace ospray {
 
     auto &joints = child("joints");
 
-    for (int i = 0; i < 3; i++) {
-      auto &sphere = joints.createChild("joint" + std::to_string(i), "geometry_spheres");
+    for (int i = 0; i < streamer_plugin::K4ABT_JOINT_COUNT; i++) {
+      auto &sphere = joints.createChild(streamer_plugin::k4abt_joint_id_t_str[i], "geometry_spheres");
       sphere.createChildData("sphere.position", vec3f(i, 0, 0));
       sphere.child("radius") = radius;
       sphere.createChild("color", "rgba", vec4f(1, 1, 0, 1));

@@ -1,6 +1,7 @@
 #include <ctime>
 
 #include "PanelStreamer.h"
+#include "Util.h"
 
 #include "app/widgets/GenerateImGuiWidgets.h"
 
@@ -12,7 +13,7 @@
 
 namespace ospray {
   namespace streamer_plugin {
-
+  
   PanelStreamer::PanelStreamer(std::shared_ptr<StudioContext> _context, std::string _panelName)
       : Panel(_panelName.c_str(), _context)
       , panelName(_panelName)
@@ -143,7 +144,7 @@ namespace ospray {
             return;
           }
 
-          if (j == nullptr || j["HAND_LEFT"] == nullptr || j["HAND_RIGHT"] == nullptr || j["SPINE_CHEST"]  == nullptr) return;
+          if (j == nullptr) return;
 
           auto &joints = context->frame->child("world").child("gestures_generator").child("joints");
 
@@ -151,19 +152,13 @@ namespace ospray {
           const AffineSpace3f s = AffineSpace3f::scale(vec3f(scaleOffset));
           const AffineSpace3f r = LinearSpace3f(sg::eulerToQuaternion(deg2rad(vec3f(rotationOffset))));
           const AffineSpace3f t = AffineSpace3f::translate(vec3f(translationOffset));
-          {
-            vec3f pos = j["HAND_LEFT"].get<vec3f>();
-            auto &joint = joints.child("joint0");
-            joint.createChildData("sphere.position", xfmPoint(t * r * s, pos));
-          }
-          {
-            vec3f pos = j["HAND_RIGHT"].get<vec3f>();
-            auto &joint = joints.child("joint1");
-            joint.createChildData("sphere.position", xfmPoint(t * r * s, pos));
-          }
-          {
-            vec3f pos = j["SPINE_CHEST"].get<vec3f>();
-            auto &joint = joints.child("joint2");
+          for (int i = 0; i < K4ABT_JOINT_COUNT; i++) {
+            std::string id = k4abt_joint_id_t_str[i];
+            
+            if (!j.contains(id)) continue;
+
+            vec3f pos = j[id].get<vec3f>();
+            auto &joint = joints.child(id);
             joint.createChildData("sphere.position", xfmPoint(t * r * s, pos));
           }
         };
