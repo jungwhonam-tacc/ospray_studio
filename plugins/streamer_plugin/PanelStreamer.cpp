@@ -146,21 +146,34 @@ namespace ospray {
 
           if (j == nullptr) return;
 
-          auto &joints = context->frame->child("world").child("gestures_generator").child("joints");
+          std::vector<vec3f> raw;
+          raw.resize(K4ABT_JOINT_COUNT);
+          std::vector<vec3f> processed;
+          processed.resize(K4ABT_JOINT_COUNT);
+          bool graspLeftHand = false;
+          bool graspRightHand = false;
 
-          // offset
+          // get raw data
+          for (int i = 0; i < K4ABT_JOINT_COUNT; i++) {
+            std::string id = k4abt_joint_id_t_str[i];
+            raw[i] = j.contains(id) ? j[id].get<vec3f>() : vec3f(0, 0, 0);
+          }
+
+          // compute processed data (apply the offset)
           const AffineSpace3f s = AffineSpace3f::scale(vec3f(scaleOffset));
           const AffineSpace3f r = LinearSpace3f(sg::eulerToQuaternion(deg2rad(vec3f(rotationOffset))));
           const AffineSpace3f t = AffineSpace3f::translate(vec3f(translationOffset));
           for (int i = 0; i < K4ABT_JOINT_COUNT; i++) {
             std::string id = k4abt_joint_id_t_str[i];
-            
-            if (!j.contains(id)) continue;
-
-            vec3f pos = j[id].get<vec3f>();
-            auto &joint = joints.child(id);
-            joint.createChildData("sphere.position", xfmPoint(t * r * s, pos));
+            processed[i] = xfmPoint(t * r * s, raw[i]);
           }
+          // TODO compute processed data (fists???)
+          
+          // update the visualizer (joint spheres)
+          auto &spheres = context->frame->child("world").child("gestures_generator").child("joints").child("spheres");
+          spheres.createChildData("sphere.position", processed);
+
+          // update the scene (grabbing???)
         };
 
         // On socket closed:
