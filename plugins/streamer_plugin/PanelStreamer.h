@@ -25,6 +25,15 @@ namespace ospray {
       float rotationOffset[3];
       float translationOffset[3];
 
+      int angleThreshold; // 0 ~ 180
+      int confidenceLevelThreshold;
+
+      // previous states
+      bool prevClosedLeftHand;
+      vec3f prevPosLeftHand;
+      bool prevClosedRightHand;
+      vec3f prevPosRightHand;
+
       void loadConfig();
       void saveConfig();
 

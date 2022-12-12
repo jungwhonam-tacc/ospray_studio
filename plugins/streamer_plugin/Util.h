@@ -78,5 +78,19 @@ namespace streamer_plugin {
         "EAR_RIGHT"
     };
 
+    /** k4abt_joint_confidence_level_t
+     *
+     * \remarks
+     * This enumeration specifies the joint confidence level.
+    */
+    typedef enum
+    {
+        K4ABT_JOINT_CONFIDENCE_NONE = 0,          /**< The joint is out of range (too far from depth camera) */
+        K4ABT_JOINT_CONFIDENCE_LOW = 1,           /**< The joint is not observed (likely due to occlusion), predicted joint pose */
+        K4ABT_JOINT_CONFIDENCE_MEDIUM = 2,        /**< Medium confidence in joint pose. Current SDK will only provide joints up to this confidence level */
+        K4ABT_JOINT_CONFIDENCE_HIGH = 3,          /**< High confidence in joint pose. Placeholder for future SDK */
+        K4ABT_JOINT_CONFIDENCE_LEVELS_COUNT = 4,  /**< The total number of confidence levels. */
+    } k4abt_joint_confidence_level_t;
+
 } // namespace streamer_plugin
 } // namespace ospray
