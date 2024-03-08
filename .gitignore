@@ -8,4 +8,5 @@
 !/plugins
 /plugins/*
 !/plugins/example_plugin
+!/plugins/voice_plugin
 doc/*.html
