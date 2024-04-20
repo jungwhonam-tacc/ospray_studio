@@ -1,0 +1,3 @@
+[submodule "plugins/voice_plugin/async-sockets-cpp"]
+	path = plugins/voice_plugin/async-sockets-cpp
+	url = https://github.com/JungWhoNam/async-sockets-cpp
