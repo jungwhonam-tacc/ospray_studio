@@ -20,6 +20,7 @@ struct PluginVoice : public Plugin
       const char **av = studioCommon.plugin_argv;
 
       std::string optPanelName = "Voice Panel";
+      std::string configFilePath = "config/voice_settings.json";
 
       for (int i=0; i<ac; ++i) {
         std::string arg = av[i];
@@ -27,9 +28,13 @@ struct PluginVoice : public Plugin
           optPanelName = av[i + 1];
           ++i;
         }
+        else if (arg == "--plugin:voice:config") {
+          configFilePath = av[i + 1];
+          ++i;
+        }
       }
 
-      panels.emplace_back(new PanelVoice(ctx, optPanelName));
+      panels.emplace_back(new PanelVoice(ctx, optPanelName, configFilePath));
     }
     else
       std::cout << "Plugin functionality unavailable in Batch mode .."
