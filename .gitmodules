@@ -1,3 +1,6 @@
 [submodule "plugins/gesture_plugin/async-sockets-cpp"]
 	path = plugins/gesture_plugin/async-sockets-cpp
 	url = https://github.com/JungWhoNam/async-sockets-cpp.git
+[submodule "plugins/storyboard_plugin/async-sockets-cpp"]
+	path = plugins/storyboard_plugin/async-sockets-cpp
+	url = https://github.com/JungWhoNam/async-sockets-cpp.git
