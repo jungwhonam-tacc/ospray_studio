@@ -231,28 +231,32 @@ namespace ospray {
     return res;
   }
 
-  bool PanelVoice::saveNPY(std::string fname) {    
+  bool PanelVoice::saveNPY(std::string fname) {   
+    // info about current frame buffer 
     auto &fb = context->frame->childAs<sg::FrameBuffer>("framebuffer");
     auto size = fb.child("size").valueAs<vec2i>(); // (1024, 768)
     const float *mapped = static_cast<const float *>(fb.map(OSP_FB_DEPTH));
-    size_t npix = size.x * size.y; // 786432
-    float *xyz = (float *)malloc(npix * 3 * sizeof(float));
 
+    // info about new frame buffer for saving
+    vec2f scale = getScale(512, 384);
+    vec2i sizeNew = size / scale;
+    size_t npix = sizeNew.x * sizeNew.y;
+    float *xyz = (float *)malloc(npix * 3 * sizeof(float));
     if (!xyz) return false;
 
+    // compute image plane, du, dv...
     auto &camera = context->frame->child("camera");
     auto fovy = camera["fovy"].valueAs<float>(); // 60
     auto aspect = camera["aspect"].valueAs<float>(); // 1.3333
 
-    // assume the focal length is 1.
-    vec2f imgPlaneSize;
+    vec2f imgPlaneSize; // assume the focal length is 1.
     imgPlaneSize.y = 2.f * tanf(deg2rad(0.5f * fovy)); // 1.5396
     imgPlaneSize.x = imgPlaneSize.y * aspect; // 1.1547
 
     vec3f du_size{imgPlaneSize.x, 0.f, 0.f};
     vec3f dv_up{0.f, imgPlaneSize.y, 0.f};
-    vec3f du = du_size / size.x;
-    vec3f dv = dv_up / size.y;
+    vec3f du = du_size / sizeNew.x;
+    vec3f dv = dv_up / sizeNew.y;
 
     // dir_00 points to the bottom left corner of the image plane
     vec3f dir_00{0.f, 0.f, -1.f};
@@ -260,9 +264,10 @@ namespace ospray {
     dir_00 -= 0.5f * dv_up;
 
     int idx = 0;
-    for (int v = size.y - 1; v >= 0; v--) {
-      for (int u = 0; u < size.x; u++) {
-        float depth = mapped[size.x * v + u];
+    for (int v = sizeNew.y - 1; v >= 0; v--) {
+      for (int u = 0; u < sizeNew.x; u++) {
+        int i = (int) (v * scale.y) * size.x + (int) (u * scale.x); // index for fb
+        float depth = mapped[i];
         vec3f ray_dir = normalize(dir_00 + u * du + v * dv);
         vec3f pos = ray_dir * depth; // assume the origin is (0,0,0)
 
