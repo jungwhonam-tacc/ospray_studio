@@ -16,6 +16,11 @@ namespace ospray {
 
       void processRequests();
 
+      bool saveImage(std::string fname);
+      bool saveNPY(std::string fname);
+      bool saveSG(std::string fname);
+      void moveCamera(const CameraState &state, float fovy, const vec3f &spherePos, float sphereRadius);
+
     private:
       std::string panelName;
       std::string configFilePath;
