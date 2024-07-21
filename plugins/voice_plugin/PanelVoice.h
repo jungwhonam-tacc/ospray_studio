@@ -16,6 +16,7 @@ namespace ospray {
 
       void processRequests();
 
+      vec2f getScale(int preferredWidth, int preferredHeight);
       bool saveImage(std::string fname);
       bool saveNPY(std::string fname);
       bool saveSG(std::string fname);

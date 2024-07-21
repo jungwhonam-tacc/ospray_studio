@@ -166,33 +166,67 @@ namespace ospray {
       requests.pop();
     }
   }
+
+  vec2f PanelVoice::getScale(int preferredWidth, int preferredHeight) {
+    // info about current frame buffer
+    auto &fb = context->frame->childAs<sg::FrameBuffer>("framebuffer");
+    auto size = fb.child("size").valueAs<vec2i>();
+    // info about new frame buffer for saving
+    vec2i sizeNew = vec2i(
+      size.x < preferredWidth ? size.x : preferredWidth, 
+      size.y < preferredHeight ? size.y : preferredHeight
+    );
+    vec2f scale = vec2f((float) size.x / sizeNew.x, (float) size.y / sizeNew.y);
+    // scale uniformly down to 512x384 but keep min width = 512 and height = 384
+    if (scale.x < 1 || scale.y < 1) {
+      sizeNew = size;
+      scale.x = 1.;
+      scale.y = 1.;
+    }
+    // otherwise scale uniformly...
+    else if (scale.x != scale.y) {
+      scale.x = std::min(scale.x, scale.y);
+      scale.y = scale.x;
+      sizeNew = size / scale;
+    }
+
+    return scale;
+  }
   
   bool PanelVoice::saveImage(std::string fname) {
+    // info about current frame buffer
     auto &fb = context->frame->childAs<sg::FrameBuffer>("framebuffer");
     auto size = fb.child("size").valueAs<vec2i>();
     const vec4f *mapped = static_cast<const vec4f *>(fb.map(OSP_FB_COLOR));
-    size_t npix = size.x * size.y;
-    vec4uc *newfb = (vec4uc *)malloc(npix * sizeof(vec4uc));
 
-    if (!newfb) return false;
+    // info about new frame buffer for saving
+    vec2f scale = getScale(512, 384);
+    vec2i sizeNew = size / scale;
+    vec4uc *fbNew = (vec4uc *)malloc(sizeNew.x * sizeNew.y * sizeof(vec4uc));
+    if (!fbNew) return false;
 
     // float to char
     auto gamma = [](float x) -> float {
       return pow(std::max(std::min(x, 1.f), 0.f), 1.f / 2.2f);
     };
-    for (size_t i = 0; i < npix; i++) {
-      newfb[i].x = uint8_t(255 * gamma(mapped[i].x));
-      newfb[i].y = uint8_t(255 * gamma(mapped[i].y));
-      newfb[i].z = uint8_t(255 * gamma(mapped[i].z));
-      newfb[i].w = uint8_t(255 * std::max(std::min(mapped[i].w, 1.f), 0.f));
+    for (size_t y = 0; y < sizeNew.y; y++) { 
+      for (size_t x = 0; x < sizeNew.x; x++) { 
+        int iNew = y * sizeNew.x + x; // index for fbNew
+        int i = (int) (y * scale.y) * size.x + (int) (x * scale.x); // index for fb
+
+        fbNew[iNew].x = uint8_t(255 * gamma(mapped[i].x));
+        fbNew[iNew].y = uint8_t(255 * gamma(mapped[i].y));
+        fbNew[iNew].z = uint8_t(255 * gamma(mapped[i].z));
+        fbNew[iNew].w = uint8_t(255 * std::max(std::min(mapped[i].w, 1.f), 0.f));
+      }
     }
 
     // save image
     stbi_flip_vertically_on_write(1);
-    int res = stbi_write_png(fname.c_str(), size.x, size.y, 4, (const void *)newfb, 4 * size.x);
+    int res = stbi_write_png(fname.c_str(), sizeNew.x, sizeNew.y, 4, (const void *)fbNew, 4 * sizeNew.x);
 
-    // free the memory
-    free(newfb);
+    // free memory
+    free(fbNew);
 
     return res;
   }
