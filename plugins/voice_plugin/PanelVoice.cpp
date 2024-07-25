@@ -10,6 +10,13 @@
 #include "stb_image_write.h"
 #include "npy.hpp"
 
+#include <filesystem>
+#ifdef __APPLE__
+namespace fs = std::__fs::filesystem;
+#else
+namespace fs = std::filesystem;
+#endif
+
 namespace ospray {
   namespace voice_plugin {
 
@@ -102,36 +109,39 @@ namespace ospray {
       };
 
       if (req["action"] == "capture.rgb") {
-        std::string fname = "studio.rgb.png";
+        fs::path file("studio.rgb.png");
+        fs::path full_path = fs::current_path() / file;
 
-        if (saveImage(fname)) {
+        if (saveImage(full_path)) {
           res["action"] = "capture.rgb";
-          res["fpath"] = fname;
+          res["fpath"] = full_path;
         }
         else {
-          std::cerr << "Could not save " << fname << std::endl;
+          std::cerr << "Could not save " << full_path << std::endl;
         }
       }
       else if (req["action"] == "capture.depth") {
-        std::string fname = "studio.depth.npy";
+        fs::path file("studio.depth.npy");
+        fs::path full_path = fs::current_path() / file;
 
-        if (saveNPY(fname)) {
+        if (saveNPY(full_path)) {
           res["action"] = "capture.depth";
-          res["fpath"] = fname;
+          res["fpath"] = full_path;
         }
         else {
-          std::cerr << "Could not save " << fname << std::endl;
+          std::cerr << "Could not save " << full_path << std::endl;
         }
       }
       else if (req["action"] == "capture.camera") {
-        std::string fname = "studio.camera.sg";
+        fs::path file("studio.camera.sg");
+        fs::path full_path = fs::current_path() / file;
 
-        if (saveSG(fname)) {
+        if (saveSG(full_path)) {
           res["action"] = "capture.camera";
-          res["fpath"] = fname;
+          res["fpath"] = full_path;
         }
         else {
-          std::cerr << "Could not save " << fname << std::endl;
+          std::cerr << "Could not save " << full_path << std::endl;
         }
       }
       else if (req["action"] == "set.camera") {
